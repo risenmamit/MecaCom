@@ -12,33 +12,21 @@ async def test(loop):
             "device": "pc"
         }
         await websocket.send(json.dumps(ji))
+        response = await websocket.recv()
+        response = json.loads(response)
+        conection = response["conection"]
+        
+        print(response)
         while True:
-            out = input("Enter F or R")
+            out = input("Enter\n 1:Forward\n 2:Reverce\n 3:Stop\n")
             ji = {
                 "isfirst": "false",
                 "device": "pc",
                 "target":"ESP",
                 "conection":"message",
-                "message" : out
+                "message" : int(out)
             }
             await websocket.send(json.dumps(ji))
-            
-            # response = await websocket.recv()
-            # response = json.loads(response)
-            # conection = response["conection"]
-            
-            # print(response)
-            # out = loop.call_soon(sendMsg())
-            # print(out)
-            # if(True):
-            #     ji = {
-            #         "isfirst": "false",
-            #         "device": "pc",
-            #         "target":"ESP",
-            #         "conection":"message",
-            #         "value" : out
-            #     }
-            #     await websocket.send(json.dumps(ji))
 
             # if conection == "true":
             #     print("Connection Established")
@@ -49,8 +37,8 @@ async def test(loop):
             #     devices = json.loads(response["devices"])
             #     print(f"Mobile: {devices['mobile']}\tPC: {devices['pc']}\tESP: {devices['ESP']}")
                 
-            # elif conection == "alreadyConected":
-            #     break
+            if conection == "alreadyConected":
+                break
             
             # elif conection == "message":
             #     pass

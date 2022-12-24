@@ -84,7 +84,7 @@ wss.on('connection', (ws) => {
           if(value.device == message.target){
             key.send(JSON.stringify({
               conection:"message",
-              message:message.value
+              message:message.message
             }));
           }
         })
