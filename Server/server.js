@@ -1,9 +1,8 @@
 const WebSocket = require('ws');
-global.no_ESP = 0;
 
 const wss = new WebSocket.Server({
   port: 3000,
-  host: '192.168.72.201'
+  host: '192.168.0.107'
 });
 
 const clients = new Map();
@@ -45,8 +44,6 @@ wss.on('connection', (ws) => {
           mobile = "true";
 
         } else if (device == "ESP") {
-          global.no_ESP += 1;
-          console.log(global.no_ESP);
           ESP = "true";
 
         } else if (device == "pc") {
@@ -87,6 +84,12 @@ wss.on('connection', (ws) => {
               message:message.message
             }));
           }
+          if(value.device == message.device){
+            key.send(JSON.stringify({
+              conection:"message",
+              message:"Sent"
+            }));
+          }
         })
       }
     }
@@ -97,16 +100,8 @@ wss.on('connection', (ws) => {
       if (device == "mobile") {
         mobile = "false";
 
-      } else if (device == "ESP") {
-        if(global.no_ESP<=1){
-          console.log(global.no_ESP);
-          ESP = "false";
-        }else{
-          global.no_ESP -= 1;
-          console.log(global.no_ESP);
-        }
-
-      } else if (device == "pc") {
+      } 
+      else if (device == "pc") {
         pc = "false";
 
       }
@@ -143,9 +138,6 @@ function uuidv4() {
 }
 
 function ispresent(dev){
-  if(dev == "ESP"){
-    return ESP == "true";
-  }
   if(dev == "pc"){
     return pc == "true";
   }

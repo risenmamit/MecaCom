@@ -19,34 +19,35 @@ async def test(loop):
         print(response)
         while True:
             out = input("Enter\n 1:Forward\n 2:Reverce\n 3:Stop\n")
+            if out == "1":
+                out = "F"
+            elif out == "2":
+                out = "R"
+            elif out == "3":
+                out = "S"
             ji = {
                 "isfirst": "false",
                 "device": "pc",
                 "target":"ESP",
                 "conection":"message",
-                "message" : int(out)
+                "message" : out
             }
             await websocket.send(json.dumps(ji))
+            response = await websocket.recv()
+            response = json.loads(response)
+            conection = response["conection"]
 
-            # if conection == "true":
-            #     print("Connection Established")
-            #     devices = json.loads(response["devices"])
-            #     print(f"Mobile: {devices['mobile']}\tPC: {devices['pc']}\tESP: {devices['ESP']}")
+            if conection == "true":
+                print("Connection Established")
+                devices = json.loads(response["devices"])
+                print(f"Mobile: {devices['mobile']}\tPC: {devices['pc']}\tESP: {devices['ESP']}")
 
-            # elif conection == "newConnection" or conection == "lost":
-            #     devices = json.loads(response["devices"])
-            #     print(f"Mobile: {devices['mobile']}\tPC: {devices['pc']}\tESP: {devices['ESP']}")
+            elif conection == "newConnection" or conection == "lost":
+                devices = json.loads(response["devices"])
+                print(f"Mobile: {devices['mobile']}\tPC: {devices['pc']}\tESP: {devices['ESP']}")
                 
-            if conection == "alreadyConected":
+            elif conection == "alreadyConected":
                 break
-            
-            # elif conection == "message":
-            #     pass
-                # print("response")
-                # if response["message"] == "teamviewer":
-                #     os.startfile("C:\\Program Files\\TeamViewer\\TeamViewer.exe")
-                # elif response["message"] == "jupyternotebook":
-                #     os.startfile("C:\\Users\\Madwesh\\PycharmProjects\\pysocket\\jupyter.bat")
 
 
 loop = asyncio.get_event_loop()

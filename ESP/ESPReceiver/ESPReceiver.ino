@@ -5,8 +5,8 @@
 #include <string.h>
 
 
-const char* ssid = "F19";        // Wifi SSID
-const char* password = "1234robo";  //Wi-FI Password
+const char* ssid = "maheshwari";        // Wifi SSID
+const char* password = "maheshwari65";  //Wi-FI Password
 WebSocketsClient webSocket;             // websocket client class instance
 StaticJsonDocument<100> doc;            // Allocate a static JSON document
 
@@ -20,13 +20,33 @@ int FR_Channel = 1;
 int RL_Channel = 2;
 int RR_Channel = 3;
 
-const int freq = 490;
-const int resolution = 16;
-
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 
+volatile int whattodo = 0;
+
 int cmd;
+
+const int maxRPM = 370;// min
+const float maxRPS = maxRPM/60;
+const float radius=7.6; // radius of wheel cm
+const float circum=2*3.14*radius;// circumference of the wheel cm
+const float maxVel = circum*maxRPS;// cm/sec
+const int resolution = 12;
+const float freq = 50; //each incrimet should be 3ms
+unsigned long int Pmax = pow(2, resolution) - 1; //max pwm duty cycle value
+unsigned long int max_forward = Pmax*0.002*freq; //0.002 is 2000us
+unsigned long int stop = Pmax*0.0015*freq; //0.0015 is 1500us
+unsigned long int max_backward = Pmax*0.001*freq; //0.001 is 1000us
+unsigned long int stepDelay = pow(10, 6)/freq+100;// 100 for ensuring signal s
+
+int vtop(float vel)//velocity to pulse
+{
+  unsigned long int pul;
+  float RPS = vel/circum;
+  pul=(max_forward-max_backward)*(RPS+maxRPS)/(2*maxRPS) + max_backward;
+  return pul;
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -56,7 +76,7 @@ void setup() {
   Serial.println(WiFi.localIP());  // Print local IP address
 
   //webSocket.setExtraHeaders("user-agent: Mozilla");
-  webSocket.begin("192.168.72.201", 3000);
+  webSocket.begin("192.168.0.107", 3000);
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(6000);
   xTaskCreatePinnedToCore(socketLoopHandeler,
@@ -87,8 +107,33 @@ void socketLoopHandeler(void* pvParameters) {
 }
 
 void motorHandeler(void* pvParameters) {
-  for (;;)
-    ;
+  int i = 0;
+  for (;;){
+    i = i +1;
+    if (i == 1000){
+      Serial.print("motorHandeler: ");
+      Serial.println(whattodo);
+      i = 0;
+    }      
+    if (whattodo == 1){
+      ledcWrite(0, max_forward);
+      ledcWrite(1, max_forward);
+      ledcWrite(2, max_forward);
+      ledcWrite(3, max_forward);
+    }
+    else if (whattodo == 0){
+      ledcWrite(0, stop);
+      ledcWrite(1, stop);
+      ledcWrite(2, stop);
+      ledcWrite(3, stop);
+    }
+    else if (whattodo == -1){
+      ledcWrite(0, max_backward);
+      ledcWrite(1, max_backward);
+      ledcWrite(2, max_backward);
+      ledcWrite(3, max_backward);
+    }
+  }
 }
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_CONNECTED) {
@@ -98,6 +143,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     doc["device"] = "ESP";
     serializeJson(doc, msg);
     webSocket.sendTXT(msg);
+    
     Serial.println(msg);
   }
   if (type == WStype_TEXT) {
@@ -114,13 +160,22 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       if (strcmp(doc["conection"].as<String>().c_str(), "message") == 0) {
         serializeJson(doc["message"], Serial);
         cmd = doc["message"];
-        // if (strcmp(doc["message"].as<String>().c_str(), "F") == 0) {
-        //   Serial.println("Forward");
-        // } else if (strcmp(doc["message"].as<String>().c_str(), "R") == 0) {
-        //   Serial.println("Backward");
-        // }else if (strcmp(doc["message"].as<String>().c_str(), "S") == 0) {
-        //   Serial.println("Stop");
-        // }
+        if (strcmp(doc["message"].as<String>().c_str(), "F") == 0) {
+          Serial.println("Forward");
+          whattodo = 1;
+          Serial.print("Control: ");
+          Serial.println(whattodo);
+        } else if (strcmp(doc["message"].as<String>().c_str(), "R") == 0) {
+          Serial.println("Backward");
+          whattodo = -1;
+          Serial.print("Control: ");
+          Serial.println(whattodo);
+        }else if (strcmp(doc["message"].as<String>().c_str(), "S") == 0) {
+          Serial.println("Stop");
+          whattodo = 0;
+          Serial.print("Control: ");
+          Serial.println(whattodo);
+        }
       }
     }
     //Serial.print(doc["conection"].as<char[]>());
