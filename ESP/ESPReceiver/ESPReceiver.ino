@@ -10,22 +10,23 @@ const char* password = "maheshwari65";  //Wi-FI Password
 WebSocketsClient webSocket;             // websocket client class instance
 StaticJsonDocument<100> doc;            // Allocate a static JSON document
 
-int front_left = 5;
-int front_right = 18;
-int rear_left = 19;
-int rear_right = 21;
+int front_left = 27;
+int front_right = 13;
+int rear_left = 32;
+int rear_right = 17;
 
-int FL_Channel = 0;
-int FR_Channel = 1;
-int RL_Channel = 2;
-int RR_Channel = 3;
+// F: Front
+// R: Rear
+int FR_Channel = 0; 
+int FL_Channel = 1;
+int RR_Channel = 2;
+int RL_Channel = 3;
 
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 
-volatile int whattodo = 0;
+volatile int whattodo = 5;
 
-int cmd;
 
 const int maxRPM = 370;// min
 const float maxRPS = maxRPM/60;
@@ -76,7 +77,7 @@ void setup() {
   Serial.println(WiFi.localIP());  // Print local IP address
 
   //webSocket.setExtraHeaders("user-agent: Mozilla");
-  webSocket.begin("192.168.0.107", 3000);
+  webSocket.begin("192.168.0.108", 3000);
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(6000);
   xTaskCreatePinnedToCore(socketLoopHandeler,
@@ -102,39 +103,69 @@ void loop() {
 void socketLoopHandeler(void* pvParameters) {
   for (;;) {
     webSocket.loop();
-    vTaskDelay(100);  //breather
+    vTaskDelay(50);  //breather
   }
 }
 
 void motorHandeler(void* pvParameters) {
-  int i = 0;
   for (;;){
-    i = i +1;
-    if (i == 1000){
-      Serial.print("motorHandeler: ");
-      Serial.println(whattodo);
-      i = 0;
-    }      
-    if (whattodo == 1){
-      ledcWrite(0, max_forward);
-      ledcWrite(1, max_forward);
-      ledcWrite(2, max_forward);
-      ledcWrite(3, max_forward);
+    if (whattodo == 8){
+      ledcWrite(FL_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(FR_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(RL_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(RR_Channel, stop + (max_forward-stop)/2);
     }
-    else if (whattodo == 0){
-      ledcWrite(0, stop);
-      ledcWrite(1, stop);
-      ledcWrite(2, stop);
-      ledcWrite(3, stop);
+    else if (whattodo == 5){
+      ledcWrite(FL_Channel, stop);
+      ledcWrite(FR_Channel, stop);
+      ledcWrite(RL_Channel, stop);
+      ledcWrite(RR_Channel, stop);
     }
-    else if (whattodo == -1){
-      ledcWrite(0, max_backward);
-      ledcWrite(1, max_backward);
-      ledcWrite(2, max_backward);
-      ledcWrite(3, max_backward);
+    else if (whattodo == 2){
+      ledcWrite(FL_Channel, 204.755);//stop + (max_backward-stop)/2
+      ledcWrite(FR_Channel, 204.755);
+      ledcWrite(RL_Channel, 204.755);
+      ledcWrite(RR_Channel, 204.755);
+    }
+    else if (whattodo == 4){
+      ledcWrite(FR_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(FL_Channel, 204.755);
+      ledcWrite(RR_Channel, 204.755);
+      ledcWrite(RL_Channel, stop + (max_forward-stop)/2);
+    }
+    else if (whattodo == 6){
+      ledcWrite(FL_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(FR_Channel, 204.755);
+      ledcWrite(RL_Channel, 204.755);
+      ledcWrite(RR_Channel, stop + (max_forward-stop)/2);
+    }
+    else if (whattodo == 7){
+      ledcWrite(FR_Channel, stop);
+      ledcWrite(RL_Channel, stop);
+      ledcWrite(FL_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(RR_Channel, stop + (max_forward-stop)/2);
+    }
+    else if (whattodo == 9){
+      ledcWrite(FL_Channel, stop);
+      ledcWrite(RR_Channel, stop);
+      ledcWrite(FR_Channel, stop + (max_forward-stop)/2);
+      ledcWrite(RL_Channel, stop + (max_forward-stop)/2);
+    }
+    else if (whattodo == 3){
+      ledcWrite(FL_Channel, stop);
+      ledcWrite(RR_Channel, stop);
+      ledcWrite(FR_Channel, 204.755);
+      ledcWrite(RL_Channel, 204.755);
+    }
+    else if (whattodo == 1){
+      ledcWrite(FR_Channel, stop);
+      ledcWrite(RL_Channel, stop);
+      ledcWrite(FL_Channel, 204.755);
+      ledcWrite(RR_Channel, 204.755);
     }
   }
 }
+
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_CONNECTED) {
     DynamicJsonDocument doc(1024);
@@ -154,34 +185,17 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       Serial.println(error.c_str());
       return;
     } else {
-      Serial.print("Connection: ");
-      serializeJson(doc["conection"], Serial);
-      Serial.print("\n");
+      Serial.println("recived");
       if (strcmp(doc["conection"].as<String>().c_str(), "message") == 0) {
-        serializeJson(doc["message"], Serial);
-        cmd = doc["message"];
-        if (strcmp(doc["message"].as<String>().c_str(), "F") == 0) {
-          Serial.println("Forward");
-          whattodo = 1;
-          Serial.print("Control: ");
-          Serial.println(whattodo);
-        } else if (strcmp(doc["message"].as<String>().c_str(), "R") == 0) {
-          Serial.println("Backward");
-          whattodo = -1;
-          Serial.print("Control: ");
-          Serial.println(whattodo);
-        }else if (strcmp(doc["message"].as<String>().c_str(), "S") == 0) {
-          Serial.println("Stop");
-          whattodo = 0;
-          Serial.print("Control: ");
-          Serial.println(whattodo);
-        }
+        Serial.print("whattodo: ");
+        whattodo = doc["message"].as<int>();
+        Serial.println(whattodo);
       }
     }
     //Serial.print(doc["conection"].as<char[]>());
   }
   if (type == WStype_DISCONNECTED) {
     Serial.print("\nDisconnected\n");
-    //webSocket.begin("ws://192.168.0.108", 3000);
+    //webSocket.begin("ws://292.168.212.42", 3000);
   }
 }

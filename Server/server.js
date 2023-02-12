@@ -2,7 +2,7 @@ const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({
   port: 3000,
-  host: '192.168.0.107'
+  host: '192.168.0.108'
 });
 
 const clients = new Map();
@@ -12,16 +12,15 @@ var ESP = "false";
 var pc = "false";
 
 
-
+wss.setMaxListeners(0);
 wss.on('connection', (ws) => {
   var copy = false;
   const id = uuidv4();
   var device;
-  console.log("Connected");
+  //console.log("Connected");
 
   ws.on('message', (messageAsString) => {
     const message = JSON.parse(messageAsString);
-    console.log(message);
     if (message.isfirst == "true") {
       if (ispresent(message.device) && message.device != "ESP") {
         ws.send(JSON.stringify({
@@ -63,7 +62,6 @@ wss.on('connection', (ws) => {
           }));
         });
         clients.set(ws, metadata);
-        console.log(device);
 
         ws.send(JSON.stringify({
           conection: "true",
@@ -73,26 +71,42 @@ wss.on('connection', (ws) => {
             pc: pc
           })
         }));
+        console.log(device);
       }
     }
     else if(message.isfirst == "false"){
-      if(message.device == "mobile" || message.device == "pc"){
+      if(message.conection == "close"){
+        ws.send(JSON.stringify({
+          conection: "close",
+          devices: JSON.stringify({
+            mobile: mobile,
+            ESP: ESP,
+            pc: pc
+          })
+        }));
+        ws.close();
+      }
+      else if(message.device == "mobile" || message.device == "pc"){
         clients.forEach((value, key, map) => {
           if(value.device == message.target){
             key.send(JSON.stringify({
               conection:"message",
               message:message.message
             }));
-          }
-          if(value.device == message.device){
-            key.send(JSON.stringify({
-              conection:"message",
-              message:"Sent"
+            ws.send(JSON.stringify({
+              conection: "Sending",
+              devices: JSON.stringify({
+                mobile: mobile,
+                ESP: ESP,
+                pc: pc
+              })
             }));
           }
+            
         })
       }
     }
+    console.log(message);
   });
 
   ws.on("close", () => {
@@ -124,9 +138,27 @@ wss.on('connection', (ws) => {
     copy = false;
   }
   });
-  ws.onerror = function () {
-    console.log("Some Error occurred");
-}
+  ws.onerror = function(error) {
+    console.error("WebSocket error: ", error);
+    if (device == "mobile") {
+      mobile = "false";
+    } 
+    else if (device == "pc") {
+      pc = "false";
+    }
+    clients.delete(ws);
+    [...clients.keys()].forEach((client) => {
+      client.send(JSON.stringify({
+        conection: "lost",
+        devices: JSON.stringify({
+          mobile: mobile,
+          ESP: ESP,
+          pc: pc
+        })
+      }));
+    });
+    console.log(device + " lost conection due to an error");
+  };
 })
 
 function uuidv4() {
